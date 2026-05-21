@@ -1,0 +1,32 @@
+# Agenteum Net
+
+Agenteum Net is an HTTP-only MCP server that exposes web search and web fetch tools for local agent clients.
+
+## v1.0 Tools
+
+- `agenteum_search(query, max_result=10, time_range=None, topic=None)`
+- `agenteum_fetch(urls)`
+
+## Local Run
+
+```bash
+uv sync
+uv run agenteum-net
+```
+
+The MCP endpoint is available at:
+
+```text
+http://127.0.0.1:8765/mcp/full
+```
+
+## WSL Access
+
+The server binds to `127.0.0.1` by default. For WSL clients that need host-visible binding:
+
+```env
+AGENTEUM_HOST=0.0.0.0
+AGENTEUM_ALLOW_REMOTE=true
+```
+
+v1.0 has no authentication. Do not expose a remote bind address to an untrusted network.

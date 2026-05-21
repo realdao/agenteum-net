@@ -1,0 +1,49 @@
+[project]
+name = "agenteum-net"
+version = "0.1.0"
+description = "HTTP-only MCP server for agent web search and fetch providers."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "ddgs>=9.14.2,<10",
+  "fastapi>=0.115,<1",
+  "httpx>=0.28,<1",
+  "markitdown>=0.1.5,<0.2",
+  "mcp>=1.27.1,<2",
+  "pydantic>=2.11,<3",
+  "pydantic-settings>=2.9,<3",
+  "python-dotenv>=1,<2",
+  "uvicorn[standard]>=0.34,<1",
+]
+
+[build-system]
+requires = ["setuptools>=80"]
+build-backend = "setuptools.build_meta"
+
+[project.scripts]
+agenteum-net = "src.app:main"
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3,<9",
+  "pytest-asyncio>=0.26,<1",
+  "ruff>=0.11,<1",
+]
+
+[tool.setuptools.packages.find]
+include = ["src*"]
+
+[tool.setuptools.package-data]
+"src.resources" = ["*.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
