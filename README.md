@@ -41,3 +41,21 @@ uv run ruff check .
 ## Security
 
 Agenteum Net v1.0 has no authentication. The default host is `127.0.0.1`. Setting `AGENTEUM_HOST=0.0.0.0` requires `AGENTEUM_ALLOW_REMOTE=true` and is only intended for trusted local or WSL setups.
+
+## Manual Provider Smoke Checks
+
+Default automated tests do not call real Tavily, Exa, Jina, or DuckDuckGo endpoints.
+
+After placing real keys in `.env`, start the server:
+
+```bash
+uv run agenteum-net
+```
+
+Then connect an MCP client to:
+
+```text
+http://127.0.0.1:8765/mcp/full
+```
+
+Run one search query and one fetch request manually to validate local provider credentials.
