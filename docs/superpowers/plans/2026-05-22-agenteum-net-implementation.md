@@ -118,6 +118,10 @@ dependencies = [
   "uvicorn[standard]>=0.34,<1",
 ]
 
+[build-system]
+requires = ["setuptools>=80"]
+build-backend = "setuptools.build_meta"
+
 [project.scripts]
 agenteum-net = "src.app:main"
 
@@ -1819,7 +1823,7 @@ class FakeMarkdownConverter:
     def html_to_markdown(self, html, url=None):
         assert "<h1>Hello</h1>" in html
         assert url == "https://example.com/"
-        return "# Hello"
+        return "# Hello\n\nThis page has enough readable content."
 
 
 @pytest.mark.asyncio
@@ -1839,7 +1843,7 @@ async def test_http_fetch_success_uses_headers_and_final_url():
     result = await provider.fetch("https://example.com/")
 
     assert result.status == "ok"
-    assert result.content == "# Hello"
+    assert result.content == "# Hello\n\nThis page has enough readable content."
     assert result.final_url == "https://example.com/"
     await client.aclose()
 
