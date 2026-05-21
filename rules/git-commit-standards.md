@@ -14,7 +14,7 @@
 在提交时，请使用以下格式附加 `--author` 选项，无需修改仓库的 `user.name` 或 `user.email` 配置：
 
 ```bash
-git commit --author="Gemini <gemini@llm-meeting.com>" -m "feat: your commit message"
+git commit --author="Gemini <gemini@agenteum.com>" -m "feat: your commit message"
 ```
 
 *注：请将 "Gemini" 及邮箱前缀替换为您实际的 Agent 名称。*
