@@ -33,7 +33,10 @@ class ExaSearchProvider:
                 message="EXA_API_KEY is not configured.",
             )
 
-        payload: dict[str, Any] = {"query": request.query, "numResults": min(request.max_result, 20)}
+        payload: dict[str, Any] = {
+            "query": request.query,
+            "numResults": min(request.max_result, 20),
+        }
         try:
             response = await self.client.post(
                 EXA_SEARCH_URL,

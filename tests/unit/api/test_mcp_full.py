@@ -15,7 +15,12 @@ def test_resource_markdown_files_load():
 async def test_mcp_server_can_be_created_with_fake_services():
     class FakeSearchService:
         async def search(self, request):
-            return SearchResponse(query=request.query, results=[], source="duckduckgo", fallbacks=[])
+            return SearchResponse(
+                query=request.query,
+                results=[],
+                source="duckduckgo",
+                fallbacks=[],
+            )
 
     class FakeFetchService:
         async def fetch(self, urls):

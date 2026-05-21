@@ -31,7 +31,8 @@ class Settings(BaseSettings):
             return
         if not self.allow_remote:
             raise ValueError(
-                "Remote bind hosts require AGENTEUM_ALLOW_REMOTE=true because v1.0 has no authentication."
+                "Remote bind hosts require AGENTEUM_ALLOW_REMOTE=true "
+                "because v1.0 has no authentication."
             )
         logger.warning(
             "Agenteum Net is listening on a remote bind host with no authentication.",

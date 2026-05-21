@@ -30,3 +30,14 @@ AGENTEUM_ALLOW_REMOTE=true
 ```
 
 v1.0 has no authentication. Do not expose a remote bind address to an untrusted network.
+
+## Development Checks
+
+```bash
+uv run pytest
+uv run ruff check .
+```
+
+## Security
+
+Agenteum Net v1.0 has no authentication. The default host is `127.0.0.1`. Setting `AGENTEUM_HOST=0.0.0.0` requires `AGENTEUM_ALLOW_REMOTE=true` and is only intended for trusted local or WSL setups.

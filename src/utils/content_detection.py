@@ -31,6 +31,4 @@ def looks_blocked(html: str, markdown: str | None = None) -> bool:
     combined = f"{title}\n{html}\n{markdown_text}".lower()
     if any(marker in combined for marker in STRONG_BLOCKED_MARKERS):
         return True
-    if any(marker in title for marker in WEAK_BLOCKED_MARKERS) and len(markdown_text) < 500:
-        return True
-    return False
+    return any(marker in title for marker in WEAK_BLOCKED_MARKERS) and len(markdown_text) < 500
