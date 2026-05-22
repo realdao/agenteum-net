@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 
 import httpx
 import uvicorn
@@ -10,7 +9,6 @@ from fastapi import FastAPI
 from src.api.mcp_full import create_mcp_server
 from src.api.transport import mount_mcp_streamable_http
 from src.config import Settings, get_settings
-from src.logging_config import setup_logging
 from src.providers.fetch.http import HttpFetchProvider
 from src.providers.fetch.jina import JinaFetchProvider
 from src.providers.search.duckduckgo import DuckDuckGoSearchProvider
@@ -55,8 +53,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
 
 def main() -> None:
+    logging.basicConfig(level=logging.INFO)
     settings = get_settings()
-    log_dir = Path(__file__).parent.parent / "logs"
-    setup_logging(level=logging.INFO, log_dir=log_dir if log_dir.exists() else None)
     app = create_app(settings)
     uvicorn.run(app, host=settings.host, port=settings.port)
