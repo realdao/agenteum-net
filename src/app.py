@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import logging
 
 import httpx
@@ -24,8 +25,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     logger = logging.getLogger("agenteum_net")
     settings.validate_network_binding(logger)
 
-    app = FastAPI(title="Agenteum Net")
-
     search_client = httpx.AsyncClient(timeout=settings.request_timeout)
     fetch_client = httpx.AsyncClient(timeout=settings.fetch_timeout, follow_redirects=True)
     jina_client = httpx.AsyncClient(timeout=settings.jina_timeout)
@@ -48,7 +47,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
 
     mcp = create_mcp_server(search_service=search_service, fetch_service=fetch_service)
-    mount_mcp_streamable_http(app, mcp=mcp, path="/mcp/full")
+    mcp_app = mount_mcp_streamable_http(mcp)
+
+    @contextlib.asynccontextmanager
+    async def lifespan(app: FastAPI):
+        async with mcp_app.router.lifespan_context(mcp_app):
+            yield
+
+    app = FastAPI(title="Agenteum Net", lifespan=lifespan)
+    app.mount("/mcp/full", mcp_app)
     return app
 
 
