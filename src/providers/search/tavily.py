@@ -35,7 +35,6 @@ class TavilySearchProvider:
     ) -> None:
         self.api_key = api_key
         self.client = client or httpx.AsyncClient(timeout=timeout)
-        self.timeout = timeout
 
     async def search(self, request: SearchRequest) -> list[SearchResult]:
         if not self.api_key:

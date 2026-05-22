@@ -47,6 +47,7 @@ def create_mcp_server(*, search_service: Any, fetch_service: Any) -> FastMCP:
 
 
 def _register_resource(mcp: FastMCP, uri: str) -> None:
+    # Each call creates a new closure scope, so uri is captured correctly.
     @mcp.resource(uri)
     def read_resource() -> str:
         return resource_text_by_uri(uri)

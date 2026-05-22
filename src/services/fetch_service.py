@@ -5,7 +5,7 @@ import logging
 
 from src.errors import ErrorType, ProviderError
 from src.providers.fetch.base import FetchProvider
-from src.schemas import FetchError, FetchResponse, FetchResult
+from src.schemas import FetchError, FetchProviderName, FetchResponse, FetchResult
 from src.utils.urls import is_jina_first_url
 
 HTTP_TO_JINA_FALLBACK_ERRORS = {
@@ -59,9 +59,16 @@ class FetchService:
         try:
             return await provider.fetch(url)
         except ProviderError as exc:
+            if exc.error_type in {ErrorType.CONFIG_ERROR, ErrorType.AUTH_ERROR}:
+                raise
             return self._error_result(url, provider.name, exc)
 
-    def _error_result(self, url: str, provider_name: str, exc: ProviderError) -> FetchResult:
+    def _error_result(
+        self,
+        url: str,
+        provider_name: FetchProviderName,
+        exc: ProviderError,
+    ) -> FetchResult:
         return FetchResult(
             url=url,
             final_url=None,

@@ -65,5 +65,6 @@ Thumbs.db
 *.log
 
 # Coding agents
+.claude/
 .commandcode/
 CLAUDE.md

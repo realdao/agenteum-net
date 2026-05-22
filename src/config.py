@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from functools import lru_cache
+from functools import cache
 from ipaddress import ip_address
 
 from pydantic import Field
@@ -52,6 +52,6 @@ def is_remote_bind_host(host: str) -> bool:
         return True
 
 
-@lru_cache
+@cache
 def get_settings() -> Settings:
     return Settings()

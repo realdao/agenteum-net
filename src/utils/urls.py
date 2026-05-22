@@ -5,11 +5,6 @@ from urllib.parse import urlparse
 JINA_FIRST_HOSTS = ("x.com", "twitter.com")
 
 
-def is_http_url(url: str) -> bool:
-    parsed = urlparse(url)
-    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
-
-
 def hostname(url: str) -> str:
     return (urlparse(url).hostname or "").lower()
 

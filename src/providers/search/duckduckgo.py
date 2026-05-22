@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
-from typing import Any
 
 from ddgs import DDGS
 
@@ -24,7 +22,7 @@ _TIME_RANGE_MAP = {
 class DuckDuckGoSearchProvider:
     name = "duckduckgo"
 
-    def __init__(self, *, ddgs_factory: Callable[[], Any] = DDGS) -> None:
+    def __init__(self, *, ddgs_factory: type[DDGS] = DDGS) -> None:
         self.ddgs_factory = ddgs_factory
 
     async def search(self, request: SearchRequest) -> list[SearchResult]:

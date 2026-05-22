@@ -3,13 +3,13 @@ from __future__ import annotations
 import httpx
 
 from src.errors import ErrorType, ProviderError
-from src.schemas import FetchResult
+from src.schemas import FetchProviderName, FetchResult
 
 JINA_READER_BASE_URL = "https://r.jina.ai"
 
 
 class JinaFetchProvider:
-    name = "jina"
+    name: FetchProviderName = "jina"
 
     def __init__(
         self,

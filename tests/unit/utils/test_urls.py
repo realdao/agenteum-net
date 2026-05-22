@@ -1,9 +1,4 @@
-from src.utils.urls import is_http_url, is_jina_first_url
-
-
-def test_http_url_validation():
-    assert is_http_url("https://example.com")
-    assert not is_http_url("file:///tmp/a.html")
+from src.utils.urls import is_jina_first_url
 
 
 def test_jina_first_domains():

@@ -3,7 +3,7 @@ from __future__ import annotations
 import httpx
 
 from src.errors import ErrorType, ProviderError
-from src.schemas import FetchResult
+from src.schemas import FetchProviderName, FetchResult
 from src.utils.content_detection import looks_blocked
 from src.utils.headers import get_fetch_headers
 from src.utils.markdown import MarkdownConverter
@@ -12,7 +12,7 @@ MIN_MARKDOWN_LENGTH = 20
 
 
 class HttpFetchProvider:
-    name = "http"
+    name: FetchProviderName = "http"
 
     def __init__(
         self,
