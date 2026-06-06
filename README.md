@@ -43,6 +43,16 @@ uv run pytest
 uv run ruff check .
 ```
 
+## Search Evaluation
+
+Run a small manual comparison across search providers:
+
+```bash
+uv run search-eval --limit 12 --output reports/search-eval.md
+```
+
+Use `--providers tavily,exa,duckduckgo` to choose providers. The built-in query set stays below 50 queries.
+
 ## Security
 
 Agenteum Net v1.0 has no authentication. The default host is `127.0.0.1`. Setting `AGENTEUM_HOST=0.0.0.0` requires `AGENTEUM_ALLOW_REMOTE=true` and is only intended for trusted local or WSL setups.
