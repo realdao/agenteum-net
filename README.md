@@ -5,6 +5,7 @@ Agenteum Net is an HTTP-only MCP server that exposes web search and web fetch to
 ## v1.0 Tools
 
 - `search(query, max_result=10, time_range=None, topic=None)`
+- `parallel_search(query, max_result=10, time_range=None, topic=None, providers=None)`
 - `fetch(urls)`
 
 ## Local Run

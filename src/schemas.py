@@ -50,6 +50,21 @@ class SearchResponse(BaseModel):
     fallbacks: list[FallbackRecord] = Field(default_factory=list)
 
 
+class SearchProviderError(BaseModel):
+    provider: SearchProviderName
+    type: str
+    message: str
+    http_status: int | None = None
+    request_id: str | None = None
+
+
+class ParallelSearchResponse(BaseModel):
+    query: str
+    results: list[SearchResult]
+    sources: list[SearchProviderName]
+    errors: list[SearchProviderError] = Field(default_factory=list)
+
+
 class FetchError(BaseModel):
     type: str
     message: str

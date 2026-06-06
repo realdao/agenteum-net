@@ -5,6 +5,8 @@ from src.schemas import (
     FetchRequest,
     FetchResponse,
     FetchResult,
+    ParallelSearchResponse,
+    SearchProviderError,
     SearchRequest,
     SearchResponse,
     SearchResult,
@@ -34,6 +36,34 @@ def test_search_response_serializes_unified_results():
     response = SearchResponse(query="example", results=[result], source="tavily", fallbacks=[])
 
     assert response.model_dump()["results"][0]["source"] == "tavily"
+
+
+def test_parallel_search_response_serializes_sources_and_errors():
+    result = SearchResult(
+        title="Example",
+        url="https://example.com",
+        snippet="Example snippet",
+        published_at=None,
+        source="tavily",
+        score=0.9,
+    )
+    response = ParallelSearchResponse(
+        query="example",
+        results=[result],
+        sources=["tavily"],
+        errors=[
+            SearchProviderError(
+                provider="exa",
+                type="rate_limited",
+                message="Exa failed",
+            )
+        ],
+    )
+
+    dumped = response.model_dump()
+
+    assert dumped["sources"] == ["tavily"]
+    assert dumped["errors"][0]["provider"] == "exa"
 
 
 def test_fetch_request_rejects_more_than_ten_urls():

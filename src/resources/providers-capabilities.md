@@ -6,6 +6,8 @@ Search providers:
 - Exa: API key required, search fallback provider.
 - DuckDuckGo: no API key, free fallback provider through `ddgs`.
 
+Search provider names for `parallel_search.providers`: `tavily`, `exa`, and `duckduckgo`.
+
 Fetch providers:
 
 - HTTP: first provider for normal HTML pages, converts HTML to Markdown with MarkItDown.

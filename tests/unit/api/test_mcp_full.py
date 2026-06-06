@@ -2,7 +2,7 @@ import pytest
 
 from src.api.mcp_full import create_mcp_server
 from src.resources.tool_guides import load_resource_text
-from src.schemas import FetchResponse, FetchResult, SearchResponse
+from src.schemas import FetchResponse, FetchResult, ParallelSearchResponse, SearchResponse
 
 
 def test_resource_markdown_files_load():
@@ -20,6 +20,14 @@ async def test_mcp_server_can_be_created_with_fake_services():
                 results=[],
                 source="duckduckgo",
                 fallbacks=[],
+            )
+
+        async def parallel_search(self, request, provider_names=None):
+            return ParallelSearchResponse(
+                query=request.query,
+                results=[],
+                sources=provider_names or ["duckduckgo"],
+                errors=[],
             )
 
     class FakeFetchService:
@@ -44,13 +52,21 @@ async def test_mcp_server_registers_short_tool_names_only():
                 fallbacks=[],
             )
 
+        async def parallel_search(self, request, provider_names=None):
+            return ParallelSearchResponse(
+                query=request.query,
+                results=[],
+                sources=provider_names or ["duckduckgo"],
+                errors=[],
+            )
+
     class FakeFetchService:
         async def fetch(self, urls):
             return FetchResponse(results=[])
 
     mcp = create_mcp_server(search_service=FakeSearchService(), fetch_service=FakeFetchService())
 
-    assert set(mcp._tool_manager._tools) == {"search", "fetch"}
+    assert set(mcp._tool_manager._tools) == {"search", "parallel_search", "fetch"}
 
 
 @pytest.mark.asyncio
@@ -62,6 +78,14 @@ async def test_search_tool_logs_function_parameters_and_debug_result(caplog):
                 results=[],
                 source="duckduckgo",
                 fallbacks=[],
+            )
+
+        async def parallel_search(self, request, provider_names=None):
+            return ParallelSearchResponse(
+                query=request.query,
+                results=[],
+                sources=provider_names or ["duckduckgo"],
+                errors=[],
             )
 
     class FakeFetchService:
@@ -114,6 +138,14 @@ async def test_fetch_tool_logs_function_parameters_and_debug_result(caplog):
                 fallbacks=[],
             )
 
+        async def parallel_search(self, request, provider_names=None):
+            return ParallelSearchResponse(
+                query=request.query,
+                results=[],
+                sources=provider_names or ["duckduckgo"],
+                errors=[],
+            )
+
     class FakeFetchService:
         async def fetch(self, urls):
             return FetchResponse(
@@ -157,6 +189,69 @@ async def test_fetch_tool_logs_function_parameters_and_debug_result(caplog):
     assert any(
         record.levelname == "DEBUG"
         and record.function == "fetch"
+        and record.result == result
+        for record in caplog.records
+    )
+
+
+@pytest.mark.asyncio
+async def test_parallel_search_tool_accepts_optional_providers_and_logs(caplog):
+    class FakeSearchService:
+        async def search(self, request):
+            return SearchResponse(
+                query=request.query,
+                results=[],
+                source="duckduckgo",
+                fallbacks=[],
+            )
+
+        async def parallel_search(self, request, provider_names=None):
+            return ParallelSearchResponse(
+                query=request.query,
+                results=[],
+                sources=provider_names or ["tavily", "exa", "duckduckgo"],
+                errors=[],
+            )
+
+    class FakeFetchService:
+        async def fetch(self, urls):
+            return FetchResponse(results=[])
+
+    mcp = create_mcp_server(search_service=FakeSearchService(), fetch_service=FakeFetchService())
+
+    with caplog.at_level("DEBUG", logger="agenteum_net"):
+        result = await mcp._tool_manager.call_tool(
+            "parallel_search",
+            {
+                "query": "mcp logging",
+                "max_result": 3,
+                "time_range": "week",
+                "topic": "news",
+                "providers": ["tavily", "exa"],
+            },
+        )
+
+    assert result == {
+        "query": "mcp logging",
+        "results": [],
+        "sources": ["tavily", "exa"],
+        "errors": [],
+    }
+    assert any(
+        record.levelname == "INFO"
+        and record.function == "parallel_search"
+        and record.params == {
+            "query": "mcp logging",
+            "max_result": 3,
+            "time_range": "week",
+            "topic": "news",
+            "providers": ["tavily", "exa"],
+        }
+        for record in caplog.records
+    )
+    assert any(
+        record.levelname == "DEBUG"
+        and record.function == "parallel_search"
         and record.result == result
         for record in caplog.records
     )

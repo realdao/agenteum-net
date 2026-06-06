@@ -55,6 +55,44 @@ def create_mcp_server(*, search_service: Any, fetch_service: Any) -> FastMCP:
         return result
 
     @mcp.tool()
+    async def parallel_search(
+        query: str,
+        max_result: int = 10,
+        time_range: str | None = None,
+        topic: str | None = None,
+        providers: list[str] | None = None,
+    ) -> dict:
+        """Search selected providers in parallel, merge results, and deduplicate by URL."""
+        params = {
+            "query": query,
+            "max_result": max_result,
+            "time_range": time_range,
+            "topic": topic,
+            "providers": providers,
+        }
+        logger.info(
+            "tool call function=%s params=%s",
+            "parallel_search",
+            params,
+            extra={"function": "parallel_search", "params": params},
+        )
+        request = SearchRequest(
+            query=query,
+            max_result=max_result,
+            time_range=time_range,
+            topic=topic,
+        )
+        response = await search_service.parallel_search(request, provider_names=providers)
+        result = response.model_dump()
+        logger.debug(
+            "tool result function=%s result=%s",
+            "parallel_search",
+            result,
+            extra={"function": "parallel_search", "result": result},
+        )
+        return result
+
+    @mcp.tool()
     async def fetch(urls: list[str]) -> dict:
         """Fetch known URLs as Markdown. Returns one result item per URL."""
         params = {"urls": urls}
