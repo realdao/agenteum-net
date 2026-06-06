@@ -4,7 +4,7 @@ import logging
 from functools import cache
 from ipaddress import ip_address
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -22,9 +22,18 @@ class Settings(BaseSettings):
     request_timeout: float = Field(default=15.0, alias="AGENTEUM_REQUEST_TIMEOUT")
     fetch_timeout: float = Field(default=20.0, alias="AGENTEUM_FETCH_TIMEOUT")
     jina_timeout: float = Field(default=30.0, alias="AGENTEUM_JINA_TIMEOUT")
+    log_level: str = Field(default="INFO", alias="AGENTEUM_LOG_LEVEL")
     tavily_api_key: str | None = Field(default=None, alias="TAVILY_API_KEY")
     exa_api_key: str | None = Field(default=None, alias="EXA_API_KEY")
     jina_api_key: str | None = Field(default=None, alias="JINA_API_KEY")
+
+    @field_validator("log_level")
+    @classmethod
+    def normalize_log_level(cls, value: str) -> str:
+        normalized = value.strip().upper()
+        if normalized not in logging.getLevelNamesMapping():
+            raise ValueError("AGENTEUM_LOG_LEVEL must be a valid Python logging level")
+        return normalized
 
     def validate_network_binding(self, logger: logging.Logger) -> None:
         if not is_remote_bind_host(self.host):

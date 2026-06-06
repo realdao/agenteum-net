@@ -4,8 +4,8 @@ Agenteum Net is an HTTP-only MCP server that exposes web search and web fetch to
 
 ## v1.0 Tools
 
-- `agenteum_search(query, max_result=10, time_range=None, topic=None)`
-- `agenteum_fetch(urls)`
+- `search(query, max_result=10, time_range=None, topic=None)`
+- `fetch(urls)`
 
 ## Local Run
 
@@ -30,6 +30,10 @@ AGENTEUM_ALLOW_REMOTE=true
 ```
 
 v1.0 has no authentication. Do not expose a remote bind address to an untrusted network.
+
+## Logging
+
+Set `AGENTEUM_LOG_LEVEL=DEBUG` in `.env` to include tool result payloads. Tool calls and parameters are logged at `INFO`.
 
 ## Development Checks
 

@@ -11,6 +11,13 @@ def test_default_settings_bind_to_loopback():
     assert settings.host == "127.0.0.1"
     assert settings.port == 8765
     assert settings.allow_remote is False
+    assert settings.log_level == "INFO"
+
+
+def test_log_level_can_be_configured():
+    settings = Settings(AGENTEUM_LOG_LEVEL="debug")
+
+    assert settings.log_level == "DEBUG"
 
 
 def test_remote_binding_requires_explicit_flag():

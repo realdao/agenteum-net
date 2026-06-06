@@ -1,6 +1,6 @@
-# agenteum_search
+# search
 
-Use `agenteum_search` to discover relevant web pages for a query.
+Use `search` to discover relevant web pages for a query.
 
 Parameters:
 

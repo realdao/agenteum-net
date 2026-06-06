@@ -130,7 +130,10 @@ def _parse_opencode_json_events(raw: str) -> list[dict[str, Any]]:
     return events
 
 
-def _find_tool_use_event(events: list[dict[str, Any]], tool_name_substring: str) -> dict[str, Any] | None:
+def _find_tool_use_event(
+    events: list[dict[str, Any]],
+    tool_name_substring: str,
+) -> dict[str, Any] | None:
     """Find the first tool_use event whose tool name contains *tool_name_substring*."""
     for ev in events:
         if ev.get("type") == "tool_use":
@@ -187,15 +190,19 @@ class TestOpencodeMcpConnection:
         combined = stdout + stderr
 
         assert rc == 0, f"opencode mcp list exited with {rc}. Output:\n{combined}"
-        assert "agenteum-net" in combined, f"agenteum-net not found in MCP list. Output:\n{combined}"
-        assert "connected" in combined.lower(), f"agenteum-net not marked connected. Output:\n{combined}"
+        assert "agenteum-net" in combined, (
+            f"agenteum-net not found in MCP list. Output:\n{combined}"
+        )
+        assert "connected" in combined.lower(), (
+            f"agenteum-net not marked connected. Output:\n{combined}"
+        )
 
 
 class TestOpencodeMcpTools:
     """Verify opencode non-interactive run can invoke agenteum-net tools."""
 
     def test_search_tool_is_called_via_agenteum_net(self, server: subprocess.Popen) -> None:
-        """A prompt asking agenteum-net to search should trigger the agenteum_search tool."""
+        """A prompt asking agenteum-net to search should trigger the search tool."""
         prompt = (
             "请通过 agenteum-net 搜索 'Python MCP server tutorial'，只返回工具调用结果"
         )
@@ -208,9 +215,9 @@ class TestOpencodeMcpTools:
 
         assert events, f"No JSON events parsed from stdout. stdout:\n{stdout}\nstderr:\n{stderr}"
 
-        tool_event = _find_tool_use_event(events, "agenteum_search")
+        tool_event = _find_tool_use_event(events, "search")
         assert tool_event is not None, (
-            f"No agenteum_search tool_use event found. Events:\n"
+            "No search tool_use event found. Events:\n"
             + json.dumps(events, indent=2, ensure_ascii=False)
         )
 
@@ -235,9 +242,9 @@ class TestOpencodeMcpTools:
         events = _parse_opencode_json_events(stdout)
         assert events, f"No JSON events parsed from stdout. stdout:\n{stdout}\nstderr:\n{stderr}"
 
-        tool_event = _find_tool_use_event(events, "agenteum_fetch")
+        tool_event = _find_tool_use_event(events, "fetch")
         assert tool_event is not None, (
-            f"No agenteum_fetch tool_use event found. Events:\n"
+            "No fetch tool_use event found. Events:\n"
             + json.dumps(events, indent=2, ensure_ascii=False)
         )
 

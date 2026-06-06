@@ -60,7 +60,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO)
     settings = get_settings()
+    configure_logging(settings)
     app = create_app(settings)
     uvicorn.run(app, host=settings.host, port=settings.port)
+
+
+def configure_logging(settings: Settings) -> None:
+    logging.basicConfig(level=getattr(logging, settings.log_level))

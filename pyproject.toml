@@ -21,6 +21,7 @@ requires = ["setuptools>=80"]
 build-backend = "setuptools.build_meta"
 
 [project.scripts]
+agenteum-net = "src.app:main"
 main = "src.app:main"
 
 [dependency-groups]

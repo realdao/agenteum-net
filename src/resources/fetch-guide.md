@@ -1,6 +1,6 @@
-# agenteum_fetch
+# fetch
 
-Use `agenteum_fetch` to read known HTTP or HTTPS URLs as Markdown.
+Use `fetch` to read known HTTP or HTTPS URLs as Markdown.
 
 Parameters:
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
@@ -9,6 +10,7 @@ from src.schemas import FetchRequest, SearchRequest
 
 
 def create_mcp_server(*, search_service: Any, fetch_service: Any) -> FastMCP:
+    logger = logging.getLogger("agenteum_net")
     mcp = FastMCP(
         "Agenteum Net",
         stateless_http=True,
@@ -17,13 +19,25 @@ def create_mcp_server(*, search_service: Any, fetch_service: Any) -> FastMCP:
     )
 
     @mcp.tool()
-    async def agenteum_search(
+    async def search(
         query: str,
         max_result: int = 10,
         time_range: str | None = None,
         topic: str | None = None,
     ) -> dict:
         """Search the web through Tavily, Exa, and DuckDuckGo fallback providers."""
+        params = {
+            "query": query,
+            "max_result": max_result,
+            "time_range": time_range,
+            "topic": topic,
+        }
+        logger.info(
+            "tool call function=%s params=%s",
+            "search",
+            params,
+            extra={"function": "search", "params": params},
+        )
         request = SearchRequest(
             query=query,
             max_result=max_result,
@@ -31,14 +45,35 @@ def create_mcp_server(*, search_service: Any, fetch_service: Any) -> FastMCP:
             topic=topic,
         )
         response = await search_service.search(request)
-        return response.model_dump(by_alias=True)
+        result = response.model_dump(by_alias=True)
+        logger.debug(
+            "tool result function=%s result=%s",
+            "search",
+            result,
+            extra={"function": "search", "result": result},
+        )
+        return result
 
     @mcp.tool()
-    async def agenteum_fetch(urls: list[str]) -> dict:
+    async def fetch(urls: list[str]) -> dict:
         """Fetch known URLs as Markdown. Returns one result item per URL."""
+        params = {"urls": urls}
+        logger.info(
+            "tool call function=%s params=%s",
+            "fetch",
+            params,
+            extra={"function": "fetch", "params": params},
+        )
         request = FetchRequest(urls=urls)
         response = await fetch_service.fetch(request.normalized_urls())
-        return response.model_dump()
+        result = response.model_dump()
+        logger.debug(
+            "tool result function=%s result=%s",
+            "fetch",
+            result,
+            extra={"function": "fetch", "result": result},
+        )
+        return result
 
     for uri in RESOURCE_URIS:
         _register_resource(mcp, uri)
