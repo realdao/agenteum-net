@@ -9,7 +9,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $VenvPython = Join-Path $ProjectDir ".venv\Scripts\pythonw.exe"
-$LogDir = Join-Path $ProjectDir "logs"
+$LogDir = Join-Path $ProjectDir ".logs"
 $OutLog = Join-Path $LogDir "agenteum-net.out.log"
 $ErrLog = Join-Path $LogDir "agenteum-net.err.log"
 
