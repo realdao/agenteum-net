@@ -68,4 +68,5 @@ Thumbs.db
 # Coding agents
 .claude/
 .commandcode/
+.worktrees/
 CLAUDE.md
