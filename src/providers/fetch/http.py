@@ -42,6 +42,13 @@ class HttpFetchProvider:
 
         final_url = str(response.url)
         content_type = response.headers.get("Content-Type", "").lower()
+        if 400 <= response.status_code < 500:
+            raise ProviderError(
+                error_type=ErrorType.INVALID_RESPONSE,
+                provider=self.name,
+                message=f"HTTP fetch returned {response.status_code}.",
+                http_status=response.status_code,
+            )
         if response.status_code >= 500:
             raise ProviderError(
                 error_type=ErrorType.PROVIDER_5XX,

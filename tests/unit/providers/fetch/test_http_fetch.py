@@ -12,6 +12,15 @@ class FakeMarkdownConverter:
         return "# Hello\n\nThis page has enough readable content."
 
 
+class RecordingMarkdownConverter:
+    def __init__(self):
+        self.calls = []
+
+    def html_to_markdown(self, html, url=None):
+        self.calls.append((html, url))
+        return "# Missing\n\nThis page has enough readable content."
+
+
 @pytest.mark.asyncio
 async def test_http_fetch_success_uses_headers_and_final_url():
     async def handler(request: httpx.Request) -> httpx.Response:
@@ -65,4 +74,26 @@ async def test_http_fetch_blocked_page_raises_blocked():
         await provider.fetch("https://example.com/")
 
     assert raised.value.error_type == ErrorType.BLOCKED
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_http_fetch_404_html_raises_invalid_response_with_status():
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            404,
+            headers={"Content-Type": "text/html"},
+            content=b"<html><body><h1>Not Found</h1></body></html>",
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    converter = RecordingMarkdownConverter()
+    provider = HttpFetchProvider(client=client, converter=converter)
+
+    with pytest.raises(ProviderError) as raised:
+        await provider.fetch("https://example.com/missing")
+
+    assert raised.value.error_type == ErrorType.INVALID_RESPONSE
+    assert raised.value.http_status == 404
+    assert converter.calls == []
     await client.aclose()
