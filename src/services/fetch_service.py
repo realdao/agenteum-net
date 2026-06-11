@@ -70,6 +70,16 @@ class FetchService:
             return await provider.fetch(url)
         except ProviderError as exc:
             return self._error_result(url, provider.name, exc)
+        except Exception as exc:
+            return self._error_result(
+                url,
+                provider.name,
+                ProviderError(
+                    error_type=ErrorType.PROVIDER_ERROR,
+                    provider=provider.name,
+                    message=str(exc),
+                ),
+            )
 
     def _should_fallback_to_jina(self, exc: ProviderError) -> bool:
         if (

@@ -88,6 +88,38 @@ async def test_batch_preserves_jina_config_error_as_item_error():
 
 
 @pytest.mark.asyncio
+async def test_direct_jina_unexpected_exception_returns_jina_item_error():
+    http = FakeFetchProvider("http")
+    jina = FakeFetchProvider("jina", exception=RuntimeError("boom"))
+    service = FetchService(http_provider=http, jina_provider=jina)
+
+    response = await service.fetch(["https://x.com/openai/status/1"])
+
+    assert response.results[0].status == "error"
+    assert response.results[0].source == "jina"
+    assert response.results[0].error.provider == "jina"
+    assert response.results[0].error.type == "provider_error"
+    assert response.results[0].error.message == "boom"
+    assert http.calls == []
+
+
+@pytest.mark.asyncio
+async def test_jina_fallback_unexpected_exception_returns_jina_item_error():
+    http = FakeFetchProvider("http", error_type=ErrorType.BLOCKED)
+    jina = FakeFetchProvider("jina", exception=RuntimeError("boom"))
+    service = FetchService(http_provider=http, jina_provider=jina)
+
+    response = await service.fetch(["https://example.com"])
+
+    assert response.results[0].status == "error"
+    assert response.results[0].source == "jina"
+    assert response.results[0].error.provider == "jina"
+    assert response.results[0].error.type == "provider_error"
+    assert response.results[0].error.message == "boom"
+    assert jina.calls == ["https://example.com"]
+
+
+@pytest.mark.asyncio
 async def test_http_404_invalid_response_returns_item_error_without_jina():
     http = FakeFetchProvider("http", error_type=ErrorType.INVALID_RESPONSE, http_status=404)
     jina = FakeFetchProvider("jina")
