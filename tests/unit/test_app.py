@@ -76,6 +76,44 @@ async def test_create_app_closes_owned_http_clients_when_mcp_lifespan_exit_fails
     assert [client.closed for client in clients] == [True, True, True]
 
 
+async def test_create_app_attempts_all_http_client_closes_when_first_close_fails(monkeypatch):
+    clients = []
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            self.close_attempted = False
+            self.close_error = RuntimeError("search close failed") if not clients else None
+            clients.append(self)
+
+        async def aclose(self):
+            self.close_attempted = True
+            if self.close_error:
+                raise self.close_error
+
+    class FakeRouter:
+        @contextlib.asynccontextmanager
+        async def lifespan_context(self, app):
+            yield
+
+    class FakeMcpApp:
+        router = FakeRouter()
+
+        async def __call__(self, scope, receive, send):
+            pass
+
+    monkeypatch.setattr(app_module.httpx, "AsyncClient", FakeAsyncClient)
+    monkeypatch.setattr(app_module, "mount_mcp_streamable_http", lambda mcp: FakeMcpApp())
+
+    app = app_module.create_app(Settings(TAVILY_API_KEY=None, EXA_API_KEY=None))
+
+    with pytest.raises(RuntimeError, match="search close failed"):
+        async with app.router.lifespan_context(app):
+            pass
+
+    assert len(clients) == 3
+    assert [client.close_attempted for client in clients] == [True, True, True]
+
+
 async def test_build_search_providers_skips_unconfigured_paid_providers():
     assert await provider_names(Settings(TAVILY_API_KEY=None, EXA_API_KEY=None)) == ["duckduckgo"]
 

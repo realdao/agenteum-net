@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import logging
+import sys
 
 import httpx
 import uvicorn
@@ -52,9 +54,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             async with mcp_app.router.lifespan_context(mcp_app):
                 yield
         finally:
-            await search_client.aclose()
-            await fetch_client.aclose()
-            await jina_client.aclose()
+            lifespan_error = sys.exception()
+            try:
+                await _close_http_clients(search_client, fetch_client, jina_client)
+            except BaseException:
+                if lifespan_error is None:
+                    raise
 
     app = FastAPI(title="Agenteum Net", lifespan=lifespan)
     app.mount("/mcp/full", mcp_app)
@@ -73,6 +78,16 @@ def configure_logging(settings: Settings) -> None:
         level=getattr(logging, settings.log_level),
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
+
+
+async def _close_http_clients(*clients: httpx.AsyncClient) -> None:
+    results = await asyncio.gather(
+        *(client.aclose() for client in clients),
+        return_exceptions=True,
+    )
+    for result in results:
+        if isinstance(result, BaseException):
+            raise result
 
 
 def _build_search_providers(
