@@ -4,6 +4,18 @@ from src.api.mcp_full import create_mcp_server
 from src.resources.tool_guides import load_resource_text
 from src.schemas import FetchResponse, FetchResult, ParallelSearchResponse, SearchResponse
 
+TIME_RANGE_VALUES = {"day", "week", "month", "year", "d", "w", "m", "y"}
+PROVIDER_VALUES = {"tavily", "exa", "duckduckgo"}
+
+
+def _schema_branch(schema, *, type_):
+    if schema.get("type") == type_:
+        return schema
+    for branch in schema.get("anyOf", []):
+        if branch.get("type") == type_:
+            return branch
+    raise AssertionError(f"schema branch with type {type_!r} not found in {schema!r}")
+
 
 def test_resource_markdown_files_load():
     assert "search" in load_resource_text("search-guide.md")
@@ -67,6 +79,55 @@ async def test_mcp_server_registers_short_tool_names_only():
     mcp = create_mcp_server(search_service=FakeSearchService(), fetch_service=FakeFetchService())
 
     assert set(mcp._tool_manager._tools) == {"search", "parallel_search", "fetch"}
+
+
+def test_mcp_tool_schemas_expose_request_constraints():
+    class FakeSearchService:
+        async def search(self, request):
+            return SearchResponse(
+                query=request.query,
+                results=[],
+                source="duckduckgo",
+                fallbacks=[],
+            )
+
+        async def parallel_search(self, request, provider_names=None):
+            return ParallelSearchResponse(
+                query=request.query,
+                results=[],
+                sources=provider_names or ["duckduckgo"],
+                errors=[],
+            )
+
+    class FakeFetchService:
+        async def fetch(self, urls):
+            return FetchResponse(results=[])
+
+    mcp = create_mcp_server(search_service=FakeSearchService(), fetch_service=FakeFetchService())
+
+    search_schema = mcp._tool_manager._tools["search"].parameters["properties"]
+    assert search_schema["max_result"]["minimum"] == 1
+    assert search_schema["max_result"]["maximum"] == 20
+    assert (
+        set(_schema_branch(search_schema["time_range"], type_="string")["enum"])
+        == TIME_RANGE_VALUES
+    )
+
+    parallel_search_schema = mcp._tool_manager._tools["parallel_search"].parameters["properties"]
+    assert parallel_search_schema["max_result"]["minimum"] == 1
+    assert parallel_search_schema["max_result"]["maximum"] == 20
+    assert (
+        set(_schema_branch(parallel_search_schema["time_range"], type_="string")["enum"])
+        == TIME_RANGE_VALUES
+    )
+
+    providers_schema = _schema_branch(parallel_search_schema["providers"], type_="array")
+    assert set(providers_schema["items"]["enum"]) == PROVIDER_VALUES
+    assert "providers" not in mcp._tool_manager._tools["parallel_search"].parameters["required"]
+
+    fetch_schema = mcp._tool_manager._tools["fetch"].parameters["properties"]["urls"]
+    assert fetch_schema["minItems"] == 1
+    assert fetch_schema["maxItems"] == 10
 
 
 @pytest.mark.asyncio
