@@ -11,7 +11,7 @@ from src.schemas import FetchRequest, SearchProviderName, SearchRequest, TimeRan
 
 SearchLimit = Annotated[int, Field(ge=1, le=20)]
 FetchUrls = Annotated[list[str], Field(min_length=1, max_length=10)]
-ParallelProviders = Annotated[list[SearchProviderName], Field(min_length=1, max_length=3)]
+ParallelProviders = list[SearchProviderName]
 
 
 def create_mcp_server(*, search_service: Any, fetch_service: Any) -> FastMCP:

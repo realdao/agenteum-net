@@ -123,6 +123,8 @@ def test_mcp_tool_schemas_expose_request_constraints():
 
     providers_schema = _schema_branch(parallel_search_schema["providers"], type_="array")
     assert set(providers_schema["items"]["enum"]) == PROVIDER_VALUES
+    assert "minItems" not in providers_schema
+    assert "maxItems" not in providers_schema
     assert "providers" not in mcp._tool_manager._tools["parallel_search"].parameters["required"]
 
     fetch_schema = mcp._tool_manager._tools["fetch"].parameters["properties"]["urls"]
