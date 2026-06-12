@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Annotated, Any
 
 from mcp.server.fastmcp import FastMCP
+from pydantic import Field
 
 from src.resources.tool_guides import RESOURCE_URIS, resource_text_by_uri
-from src.schemas import FetchRequest, SearchRequest
+from src.schemas import FetchRequest, SearchProviderName, SearchRequest, TimeRange
+
+SearchLimit = Annotated[int, Field(ge=1, le=20)]
+FetchUrls = Annotated[list[str], Field(min_length=1, max_length=10)]
+ParallelProviders = list[SearchProviderName]
 
 
 def create_mcp_server(*, search_service: Any, fetch_service: Any) -> FastMCP:
@@ -21,8 +26,8 @@ def create_mcp_server(*, search_service: Any, fetch_service: Any) -> FastMCP:
     @mcp.tool()
     async def search(
         query: str,
-        max_result: int = 10,
-        time_range: str | None = None,
+        max_result: SearchLimit = 10,
+        time_range: TimeRange | None = None,
         topic: str | None = None,
     ) -> dict:
         """Search the web through Tavily, Exa, and DuckDuckGo fallback providers."""
@@ -57,10 +62,10 @@ def create_mcp_server(*, search_service: Any, fetch_service: Any) -> FastMCP:
     @mcp.tool()
     async def parallel_search(
         query: str,
-        max_result: int = 10,
-        time_range: str | None = None,
+        max_result: SearchLimit = 10,
+        time_range: TimeRange | None = None,
         topic: str | None = None,
-        providers: list[str] | None = None,
+        providers: ParallelProviders | None = None,
     ) -> dict:
         """Search selected providers in parallel, merge results, and deduplicate by URL."""
         params = {
@@ -93,7 +98,7 @@ def create_mcp_server(*, search_service: Any, fetch_service: Any) -> FastMCP:
         return result
 
     @mcp.tool()
-    async def fetch(urls: list[str]) -> dict:
+    async def fetch(urls: FetchUrls) -> dict:
         """Fetch known URLs as Markdown. Returns one result item per URL."""
         params = {"urls": urls}
         logger.info(

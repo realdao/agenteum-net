@@ -135,6 +135,22 @@ async def test_parallel_search_uses_all_providers_when_provider_names_empty():
 
 
 @pytest.mark.asyncio
+async def test_parallel_search_deduplicates_requested_provider_names_preserving_order():
+    tavily = FakeSearchProvider("tavily", result("tavily"))
+    exa = FakeSearchProvider("exa", result("exa"))
+    service = SearchService([tavily, exa])
+
+    response = await service.parallel_search(
+        SearchRequest(query="mcp"),
+        provider_names=["exa", "tavily", "exa", "tavily"],
+    )
+
+    assert exa.calls == 1
+    assert tavily.calls == 1
+    assert response.sources == ["exa", "tavily"]
+
+
+@pytest.mark.asyncio
 async def test_parallel_search_returns_partial_errors_when_some_providers_fail():
     tavily = FakeSearchProvider("tavily", error_type=ErrorType.RATE_LIMITED)
     exa = FakeSearchProvider("exa", result("exa"))

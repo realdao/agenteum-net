@@ -36,6 +36,7 @@ class ExaSearchProvider:
         payload: dict[str, Any] = {
             "query": request.query,
             "numResults": min(request.max_result, 20),
+            "contents": {"text": {"maxCharacters": 500}},
         }
         try:
             response = await self.client.post(

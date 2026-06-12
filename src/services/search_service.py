@@ -147,7 +147,10 @@ class SearchService:
 
         providers_by_name = {provider.name: provider for provider in self.providers}
         selected_providers: list[SearchProvider] = []
+        seen_provider_names: set[str] = set()
         for provider_name in provider_names:
+            if provider_name in seen_provider_names:
+                continue
             provider = providers_by_name.get(provider_name)
             if provider is None:
                 raise ProviderError(
@@ -155,6 +158,7 @@ class SearchService:
                     provider="search_service",
                     message=f"Unknown search provider: {provider_name}.",
                 )
+            seen_provider_names.add(provider_name)
             selected_providers.append(provider)
         return selected_providers
 

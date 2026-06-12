@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import logging
+import sys
 
 import httpx
 import uvicorn
@@ -12,6 +14,7 @@ from src.api.transport import mount_mcp_streamable_http
 from src.config import Settings, get_settings
 from src.providers.fetch.http import HttpFetchProvider
 from src.providers.fetch.jina import JinaFetchProvider
+from src.providers.search.base import SearchProvider
 from src.providers.search.duckduckgo import DuckDuckGoSearchProvider
 from src.providers.search.exa import ExaSearchProvider
 from src.providers.search.tavily import TavilySearchProvider
@@ -30,11 +33,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     jina_client = httpx.AsyncClient(timeout=settings.jina_timeout)
 
     search_service = SearchService(
-        [
-            TavilySearchProvider(api_key=settings.tavily_api_key, client=search_client),
-            ExaSearchProvider(api_key=settings.exa_api_key, client=search_client),
-            DuckDuckGoSearchProvider(),
-        ],
+        _build_search_providers(settings, search_client, logger),
         logger=logger,
     )
     fetch_service = FetchService(
@@ -51,8 +50,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @contextlib.asynccontextmanager
     async def lifespan(app: FastAPI):
-        async with mcp_app.router.lifespan_context(mcp_app):
-            yield
+        try:
+            async with mcp_app.router.lifespan_context(mcp_app):
+                yield
+        finally:
+            lifespan_error = sys.exception()
+            try:
+                await _close_http_clients(search_client, fetch_client, jina_client)
+            except BaseException:
+                if lifespan_error is None:
+                    raise
 
     app = FastAPI(title="Agenteum Net", lifespan=lifespan)
     app.mount("/mcp/full", mcp_app)
@@ -67,4 +74,40 @@ def main() -> None:
 
 
 def configure_logging(settings: Settings) -> None:
-    logging.basicConfig(level=getattr(logging, settings.log_level))
+    logging.basicConfig(
+        level=getattr(logging, settings.log_level),
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
+
+
+async def _close_http_clients(*clients: httpx.AsyncClient) -> None:
+    results = await asyncio.gather(
+        *(client.aclose() for client in clients),
+        return_exceptions=True,
+    )
+    for result in results:
+        if isinstance(result, BaseException):
+            raise result
+
+
+def _build_search_providers(
+    settings: Settings,
+    search_client: httpx.AsyncClient,
+    logger: logging.Logger,
+) -> list[SearchProvider]:
+    providers: list[SearchProvider] = []
+
+    if settings.tavily_api_key:
+        providers.append(
+            TavilySearchProvider(api_key=settings.tavily_api_key, client=search_client)
+        )
+    else:
+        logger.info("Tavily search provider disabled because TAVILY_API_KEY is not configured.")
+
+    if settings.exa_api_key:
+        providers.append(ExaSearchProvider(api_key=settings.exa_api_key, client=search_client))
+    else:
+        logger.info("Exa search provider disabled because EXA_API_KEY is not configured.")
+
+    providers.append(DuckDuckGoSearchProvider())
+    return providers

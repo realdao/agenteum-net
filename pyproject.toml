@@ -42,6 +42,10 @@ include = ["src*"]
 testpaths = ["tests"]
 pythonpath = ["."]
 asyncio_mode = "auto"
+addopts = "-m 'not e2e'"
+markers = [
+  "e2e: tests that require real external tools or network services",
+]
 
 [tool.ruff]
 line-length = 100

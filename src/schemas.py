@@ -69,6 +69,7 @@ class FetchError(BaseModel):
     type: str
     message: str
     provider: FetchProviderName
+    http_status: int | None = None
 
 
 class FetchResult(BaseModel):

@@ -2,6 +2,7 @@ import pytest
 from pydantic import ValidationError
 
 from src.schemas import (
+    FetchError,
     FetchRequest,
     FetchResponse,
     FetchResult,
@@ -89,3 +90,14 @@ def test_fetch_response_allows_item_level_error():
 
     assert response.results[0].status == "error"
     assert response.results[0].error is not None
+
+
+def test_fetch_error_serializes_http_status():
+    error = FetchError(
+        type="invalid_response",
+        message="HTTP fetch returned 404.",
+        provider="http",
+        http_status=404,
+    )
+
+    assert error.model_dump()["http_status"] == 404
