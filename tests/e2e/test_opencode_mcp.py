@@ -5,24 +5,31 @@ from __future__ import annotations
 import json
 import os
 import signal
+import socket
 import subprocess
-import sys
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 SERVER_START_TIMEOUT = 10.0
-MCP_READY_TIMEOUT = 10.0
 OPENCODE_TIMEOUT = 120.0
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+pytestmark = pytest.mark.e2e
+
+
+@dataclass(frozen=True)
+class ServerHandle:
+    proc: subprocess.Popen
+    port: int
+    opencode_env: dict[str, str]
 
 
 def _free_port() -> int:
     """Return an ephemeral TCP port that is currently free."""
-    import socket
-
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]
@@ -48,62 +55,46 @@ def _find_opencode() -> str:
     return opencode
 
 
-def _ensure_port_free(port: int = 8765) -> None:
-    """Terminate any process listening on *port*."""
-    import shutil
-
-    if sys.platform == "win32":
-        netstat = shutil.which("netstat")
-        if netstat is None:
-            return
-        result = subprocess.run(
-            ["netstat", "-ano", "-p", "tcp"],
-            capture_output=True,
-            text=True,
-        )
-        for line in result.stdout.splitlines():
-            if f":{port}" in line and "LISTENING" in line:
-                parts = line.split()
-                if parts:
-                    pid = parts[-1]
-                    try:
-                        int(pid)
-                    except ValueError:
-                        continue
-                    subprocess.run(["taskkill", "/F", "/PID", pid], capture_output=True)
-                    time.sleep(0.5)
-    else:
-        lsof = shutil.which("lsof")
-        if lsof:
-            result = subprocess.run(
-                [lsof, "-ti", f":{port}"],
-                capture_output=True,
-                text=True,
-            )
-            for pid_str in result.stdout.strip().splitlines():
-                try:
-                    pid = int(pid_str)
-                    os.kill(pid, signal.SIGTERM)
-                    time.sleep(0.5)
-                except (ValueError, ProcessLookupError, PermissionError):
-                    pass
+def _opencode_config_content(port: int) -> str:
+    """Return an inline OpenCode config for the test server."""
+    return json.dumps(
+        {
+            "mcp": {
+                "agenteum-net": {
+                    "type": "remote",
+                    "url": f"http://127.0.0.1:{port}/mcp/full",
+                    "enabled": True,
+                    "oauth": False,
+                }
+            }
+        }
+    )
 
 
-def _wait_for_server(proc: subprocess.Popen, timeout: float = SERVER_START_TIMEOUT) -> None:
-    """Wait until uvicorn logs 'Application startup complete'."""
-    start = time.time()
-    while time.time() - start < timeout:
+def _wait_for_server(
+    proc: subprocess.Popen,
+    port: int,
+    timeout: float = SERVER_START_TIMEOUT,
+) -> None:
+    """Wait until the server accepts TCP connections."""
+    end_time = time.monotonic() + timeout
+    while time.monotonic() < end_time:
         if proc.poll() is not None:
-            stdout = proc.stdout.read() if proc.stdout else ""
-            stderr = proc.stderr.read() if proc.stderr else ""
-            raise RuntimeError(
-                f"Server exited early (code={proc.returncode}).\n"
-                f"stdout: {stdout}\nstderr: {stderr}"
-            )
-        time.sleep(0.2)
+            raise RuntimeError(f"Server exited early (code={proc.returncode}).")
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=0.2):
+                return
+        except OSError:
+            time.sleep(0.05)
+    raise RuntimeError(f"Server did not accept connections on port {port} within {timeout}s.")
 
 
-def _run_opencode(cmd_args: list[str], timeout: float = OPENCODE_TIMEOUT) -> tuple[str, str, int]:
+def _run_opencode(
+    cmd_args: list[str],
+    *,
+    env: dict[str, str] | None = None,
+    timeout: float = OPENCODE_TIMEOUT,
+) -> tuple[str, str, int]:
     """Run an opencode sub-command and return (stdout, stderr, returncode)."""
     full_cmd = [_find_opencode(), "--pure"] + cmd_args
     result = subprocess.run(
@@ -112,6 +103,7 @@ def _run_opencode(cmd_args: list[str], timeout: float = OPENCODE_TIMEOUT) -> tup
         text=True,
         timeout=timeout,
         cwd=str(PROJECT_ROOT),
+        env={**dict(os.environ), **(env or {})},
     )
     return result.stdout, result.stderr, result.returncode
 
@@ -144,49 +136,78 @@ def _find_tool_use_event(
     return None
 
 
+def _server_logs(log_paths: tuple[Path, Path]) -> str:
+    """Return server logs for failure diagnostics."""
+    stdout_path, stderr_path = log_paths
+    stdout = stdout_path.read_text(encoding="utf-8", errors="replace")
+    stderr = stderr_path.read_text(encoding="utf-8", errors="replace")
+    return f"stdout:\n{stdout}\nstderr:\n{stderr}"
+
+
+def _terminate_server(proc: subprocess.Popen) -> None:
+    if proc.poll() is not None:
+        return
+    proc.send_signal(signal.SIGTERM)
+    try:
+        proc.wait(timeout=5.0)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait()
+
+
 @pytest.fixture(scope="module")
-def server() -> subprocess.Popen:
-    """Start agenteum-net server, yield the process, then terminate it."""
+def server(tmp_path_factory: pytest.TempPathFactory) -> ServerHandle:
+    """Start agenteum-net server, yield the process handle, then terminate it."""
     uv = _find_uv()
-    _ensure_port_free(8765)
+    port = _free_port()
+    log_dir = tmp_path_factory.mktemp("agenteum-net-e2e")
+    stdout_path = log_dir / "server.stdout.log"
+    stderr_path = log_dir / "server.stderr.log"
+    stdout_file = stdout_path.open("w", encoding="utf-8")
+    stderr_file = stderr_path.open("w", encoding="utf-8")
     env = {
-        **dict(subprocess.os.environ),
+        **dict(os.environ),
         "AGENTEUM_HOST": "127.0.0.1",
-        "AGENTEUM_PORT": "8765",
+        "AGENTEUM_PORT": str(port),
         "AGENTEUM_ALLOW_REMOTE": "false",
     }
     proc = subprocess.Popen(
         [uv, "run", "agenteum-net"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stdout=stdout_file,
+        stderr=stderr_file,
         text=True,
         cwd=str(PROJECT_ROOT),
         env=env,
     )
     try:
-        _wait_for_server(proc, timeout=SERVER_START_TIMEOUT)
-        yield proc
+        _wait_for_server(proc, port, timeout=SERVER_START_TIMEOUT)
+        yield ServerHandle(
+            proc=proc,
+            port=port,
+            opencode_env={"OPENCODE_CONFIG_CONTENT": _opencode_config_content(port)},
+        )
+    except Exception as exc:
+        stdout_file.flush()
+        stderr_file.flush()
+        raise RuntimeError(f"{exc}\n{_server_logs((stdout_path, stderr_path))}") from exc
     finally:
-        proc.send_signal(signal.SIGTERM)
-        try:
-            proc.wait(timeout=5.0)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            proc.wait()
+        _terminate_server(proc)
+        stdout_file.close()
+        stderr_file.close()
 
 
 @pytest.fixture(scope="module", autouse=True)
-def wait_after_server_start(server: subprocess.Popen) -> None:
-    """Give the MCP server a moment to fully initialise before tests run."""
-    time.sleep(1.0)
+def wait_after_server_start(server: ServerHandle) -> None:
+    """Ensure the fixture starts before tests run."""
+    assert server.proc.poll() is None
 
 
 class TestOpencodeMcpConnection:
     """Verify opencode can discover and connect to agenteum-net MCP server."""
 
-    def test_mcp_list_shows_agenteum_net_connected(self, server: subprocess.Popen) -> None:
+    def test_mcp_list_shows_agenteum_net_connected(self, server: ServerHandle) -> None:
         """opencode mcp list should report agenteum-net as connected."""
-        stdout, stderr, rc = _run_opencode(["mcp", "list"])
+        stdout, stderr, rc = _run_opencode(["mcp", "list"], env=server.opencode_env)
         combined = stdout + stderr
 
         assert rc == 0, f"opencode mcp list exited with {rc}. Output:\n{combined}"
@@ -201,13 +222,14 @@ class TestOpencodeMcpConnection:
 class TestOpencodeMcpTools:
     """Verify opencode non-interactive run can invoke agenteum-net tools."""
 
-    def test_search_tool_is_called_via_agenteum_net(self, server: subprocess.Popen) -> None:
+    def test_search_tool_is_called_via_agenteum_net(self, server: ServerHandle) -> None:
         """A prompt asking agenteum-net to search should trigger the search tool."""
         prompt = (
             "请通过 agenteum-net 搜索 'Python MCP server tutorial'，只返回工具调用结果"
         )
         stdout, stderr, rc = _run_opencode(
-            ["run", "--format", "json", "--dangerously-skip-permissions", prompt]
+            ["run", "--format", "json", "--dangerously-skip-permissions", prompt],
+            env=server.opencode_env,
         )
 
         # opencode may print ANSI codes to stderr; stdout should be pure JSON.
@@ -230,13 +252,14 @@ class TestOpencodeMcpTools:
             f"Unexpected search input: {tool_input}"
         )
 
-    def test_fetch_tool_returns_content(self, server: subprocess.Popen) -> None:
+    def test_fetch_tool_returns_content(self, server: ServerHandle) -> None:
         """A prompt asking agenteum-net to fetch a URL should return page content."""
         prompt = (
             "请通过 agenteum-net 抓取 https://example.com 的内容，并总结返回了什么"
         )
         stdout, stderr, rc = _run_opencode(
-            ["run", "--format", "json", "--dangerously-skip-permissions", prompt]
+            ["run", "--format", "json", "--dangerously-skip-permissions", prompt],
+            env=server.opencode_env,
         )
 
         events = _parse_opencode_json_events(stdout)
