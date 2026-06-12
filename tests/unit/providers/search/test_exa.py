@@ -14,6 +14,7 @@ async def test_exa_success_maps_results():
         body = json.loads(request.content)
         assert body["query"] == "mcp"
         assert body["numResults"] == 3
+        assert body["contents"] == {"text": {"maxCharacters": 500}}
         return httpx.Response(
             200,
             json={
@@ -24,6 +25,10 @@ async def test_exa_success_maps_results():
                         "text": "Protocol text",
                         "publishedDate": "2026-05-01",
                         "score": 0.7,
+                    },
+                    {
+                        "title": "No snippet",
+                        "url": "https://example.com/no-snippet",
                     }
                 ]
             },
@@ -36,6 +41,7 @@ async def test_exa_success_maps_results():
 
     assert results[0].snippet == "Protocol text"
     assert results[0].source == "exa"
+    assert results[1].snippet is None
     await client.aclose()
 
 
