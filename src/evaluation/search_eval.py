@@ -33,6 +33,7 @@ DEFAULT_QUERIES = [
 ]
 
 DEFAULT_PROVIDERS = ["tavily", "exa", "duckduckgo"]
+VALID_PROVIDERS = set(DEFAULT_PROVIDERS)
 
 
 @dataclass(frozen=True)
@@ -233,7 +234,10 @@ async def evaluate_search(
 def main() -> None:
     parser = build_arg_parser()
     args = parser.parse_args()
-    providers = _parse_providers(args.providers)
+    try:
+        providers = _parse_providers(args.providers)
+    except ValueError as exc:
+        parser.error(str(exc))
     queries = _limited_queries(args.limit)
     report = render_markdown_report(
         asyncio.run(evaluate_search(queries=queries, providers=providers, settings=get_settings()))
@@ -271,7 +275,15 @@ async def _run_single_provider(
 
 def _parse_providers(value: str) -> list[str]:
     providers = [provider.strip() for provider in value.split(",") if provider.strip()]
-    return providers or DEFAULT_PROVIDERS
+    providers = providers or DEFAULT_PROVIDERS
+    unknown_providers = sorted(set(providers) - VALID_PROVIDERS)
+    if unknown_providers:
+        valid_provider_names = ", ".join(DEFAULT_PROVIDERS)
+        raise ValueError(
+            f"Unknown provider(s): {', '.join(unknown_providers)}. "
+            f"Valid providers: {valid_provider_names}."
+        )
+    return providers
 
 
 def _limited_queries(limit: int) -> list[str]:

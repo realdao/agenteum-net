@@ -1,7 +1,10 @@
+import contextlib
 import logging
 
 import httpx
+import pytest
 
+import src.app as app_module
 from src.app import _build_search_providers, configure_logging
 from src.config import Settings
 
@@ -32,6 +35,45 @@ def test_configure_logging_uses_settings_log_level(monkeypatch):
     configure_logging(Settings(AGENTEUM_LOG_LEVEL="debug"))
 
     assert captured["level"] == logging.DEBUG
+    assert "%(asctime)s" in captured["format"]
+
+
+async def test_create_app_closes_owned_http_clients_when_mcp_lifespan_exit_fails(monkeypatch):
+    clients = []
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            self.closed = False
+            clients.append(self)
+
+        async def aclose(self):
+            self.closed = True
+
+    class FakeRouter:
+        @contextlib.asynccontextmanager
+        async def lifespan_context(self, app):
+            try:
+                yield
+            finally:
+                raise RuntimeError("mcp shutdown failed")
+
+    class FakeMcpApp:
+        router = FakeRouter()
+
+        async def __call__(self, scope, receive, send):
+            pass
+
+    monkeypatch.setattr(app_module.httpx, "AsyncClient", FakeAsyncClient)
+    monkeypatch.setattr(app_module, "mount_mcp_streamable_http", lambda mcp: FakeMcpApp())
+
+    app = app_module.create_app(Settings(TAVILY_API_KEY=None, EXA_API_KEY=None))
+
+    with pytest.raises(RuntimeError, match="mcp shutdown failed"):
+        async with app.router.lifespan_context(app):
+            pass
+
+    assert len(clients) == 3
+    assert [client.closed for client in clients] == [True, True, True]
 
 
 async def test_build_search_providers_skips_unconfigured_paid_providers():

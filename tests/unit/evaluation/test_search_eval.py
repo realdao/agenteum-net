@@ -1,9 +1,14 @@
+import sys
 from pathlib import Path
 
+import pytest
+
+import src.evaluation.search_eval as search_eval
 from src.evaluation.search_eval import (
     DEFAULT_QUERIES,
     ProviderRun,
     SearchEvaluation,
+    _parse_providers,
     build_arg_parser,
     compare_provider_runs,
     empty_parallel_response_from_provider_runs,
@@ -120,6 +125,25 @@ def test_arg_parser_accepts_provider_list_limit_and_output():
     assert args.providers == "tavily,exa"
     assert args.limit == 8
     assert args.output == Path("reports/search-eval.md")
+
+
+def test_parse_providers_rejects_unknown_provider():
+    with pytest.raises(ValueError, match="Unknown provider"):
+        _parse_providers("tavily,unknown")
+
+
+def test_main_reports_unknown_provider_as_argparse_error(monkeypatch, capsys):
+    async def fail_evaluate_search(**kwargs):
+        pytest.fail("evaluate_search should not run with invalid providers")
+
+    monkeypatch.setattr(sys, "argv", ["search-eval", "--providers", "unknown", "--limit", "1"])
+    monkeypatch.setattr(search_eval, "evaluate_search", fail_evaluate_search)
+
+    with pytest.raises(SystemExit) as exc_info:
+        search_eval.main()
+
+    assert exc_info.value.code == 2
+    assert "Unknown provider" in capsys.readouterr().err
 
 
 def test_empty_parallel_response_from_provider_runs_preserves_errors():

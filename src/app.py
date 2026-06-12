@@ -48,8 +48,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @contextlib.asynccontextmanager
     async def lifespan(app: FastAPI):
-        async with mcp_app.router.lifespan_context(mcp_app):
-            yield
+        try:
+            async with mcp_app.router.lifespan_context(mcp_app):
+                yield
+        finally:
+            await search_client.aclose()
+            await fetch_client.aclose()
+            await jina_client.aclose()
 
     app = FastAPI(title="Agenteum Net", lifespan=lifespan)
     app.mount("/mcp/full", mcp_app)
@@ -64,7 +69,10 @@ def main() -> None:
 
 
 def configure_logging(settings: Settings) -> None:
-    logging.basicConfig(level=getattr(logging, settings.log_level))
+    logging.basicConfig(
+        level=getattr(logging, settings.log_level),
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
 
 
 def _build_search_providers(
