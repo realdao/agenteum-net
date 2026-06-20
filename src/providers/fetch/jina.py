@@ -63,6 +63,14 @@ class JinaFetchProvider:
                 message=f"Jina returned HTTP {response.status_code}.",
                 http_status=response.status_code,
             )
+        if response.status_code == 429:
+            raise ProviderError(
+                error_type=ErrorType.RATE_LIMITED,
+                provider=self.name,
+                message="Jina returned HTTP 429.",
+                http_status=response.status_code,
+                payload=response.text,
+            )
         if response.status_code != 200:
             raise ProviderError(
                 error_type=ErrorType.PROVIDER_ERROR,

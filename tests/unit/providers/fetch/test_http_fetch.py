@@ -1,3 +1,5 @@
+import threading
+
 import httpx
 import pytest
 
@@ -21,6 +23,15 @@ class RecordingMarkdownConverter:
         return "# Missing\n\nThis page has enough readable content."
 
 
+class ThreadRecordingMarkdownConverter:
+    def __init__(self):
+        self.thread_id = None
+
+    def html_to_markdown(self, html, url=None):
+        self.thread_id = threading.get_ident()
+        return "# Hello\n\nThis page has enough readable content."
+
+
 @pytest.mark.asyncio
 async def test_http_fetch_success_uses_headers_and_final_url():
     async def handler(request: httpx.Request) -> httpx.Response:
@@ -40,6 +51,112 @@ async def test_http_fetch_success_uses_headers_and_final_url():
     assert result.status == "ok"
     assert result.content == "# Hello\n\nThis page has enough readable content."
     assert result.final_url == "https://example.com/"
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_http_fetch_rejects_private_ip_by_default():
+    client = httpx.AsyncClient(transport=httpx.MockTransport(lambda request: httpx.Response(200)))
+    provider = HttpFetchProvider(client=client, converter=FakeMarkdownConverter())
+
+    with pytest.raises(ProviderError) as raised:
+        await provider.fetch("http://127.0.0.1/admin")
+
+    assert raised.value.error_type == ErrorType.INVALID_REQUEST
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_http_fetch_allows_private_ip_when_explicitly_enabled():
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            headers={"Content-Type": "text/html"},
+            content=b"<html><body><h1>Hello</h1></body></html>",
+            request=request,
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=False)
+    converter = RecordingMarkdownConverter()
+    provider = HttpFetchProvider(
+        client=client,
+        converter=converter,
+        allow_private_fetch=True,
+    )
+
+    result = await provider.fetch("http://127.0.0.1/")
+
+    assert result.status == "ok"
+    assert converter.calls[0][1] == "http://127.0.0.1/"
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_http_fetch_rejects_private_redirect_target():
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if str(request.url) == "https://example.com/":
+            return httpx.Response(
+                302,
+                headers={"Location": "http://127.0.0.1/admin"},
+                request=request,
+            )
+        return httpx.Response(200, request=request)
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=False)
+    provider = HttpFetchProvider(client=client, converter=FakeMarkdownConverter())
+
+    with pytest.raises(ProviderError) as raised:
+        await provider.fetch("https://example.com/")
+
+    assert raised.value.error_type == ErrorType.INVALID_REQUEST
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_http_fetch_rejects_body_larger_than_max_bytes():
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            headers={"Content-Type": "text/html"},
+            content=b"x" * 11,
+            request=request,
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=False)
+    provider = HttpFetchProvider(
+        client=client,
+        converter=FakeMarkdownConverter(),
+        max_bytes=10,
+    )
+
+    with pytest.raises(ProviderError) as raised:
+        await provider.fetch("https://example.com/")
+
+    assert raised.value.error_type == ErrorType.UNSUPPORTED_CONTENT
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_http_fetch_converts_markdown_off_event_loop_thread():
+    loop_thread_id = threading.get_ident()
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            headers={"Content-Type": "text/html"},
+            content=b"<html><body><h1>Hello</h1></body></html>",
+            request=request,
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    converter = ThreadRecordingMarkdownConverter()
+    provider = HttpFetchProvider(client=client, converter=converter)
+
+    result = await provider.fetch("https://example.com/")
+
+    assert result.status == "ok"
+    assert converter.thread_id is not None
+    assert converter.thread_id != loop_thread_id
     await client.aclose()
 
 

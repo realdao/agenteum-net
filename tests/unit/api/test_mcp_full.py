@@ -23,6 +23,15 @@ def test_resource_markdown_files_load():
     assert "Tavily" in load_resource_text("providers-capabilities.md")
 
 
+def test_provider_docs_describe_optional_paid_provider_keys():
+    capabilities = load_resource_text("providers-capabilities.md")
+    search_guide = load_resource_text("search-guide.md")
+
+    assert "Tavily and Exa are enabled only when their API keys are configured" in capabilities
+    assert "DuckDuckGo remains available without an API key" in capabilities
+    assert "Active provider order skips unconfigured paid providers" in search_guide
+
+
 @pytest.mark.asyncio
 async def test_mcp_server_can_be_created_with_fake_services():
     class FakeSearchService:

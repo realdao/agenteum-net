@@ -40,6 +40,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         http_provider=HttpFetchProvider(
             client=fetch_client,
             converter=MarkdownConverter(),
+            max_bytes=settings.fetch_max_bytes,
+            allow_private_fetch=settings.allow_private_fetch,
         ),
         jina_provider=JinaFetchProvider(api_key=settings.jina_api_key, client=jina_client),
         logger=logger,
@@ -109,5 +111,5 @@ def _build_search_providers(
     else:
         logger.info("Exa search provider disabled because EXA_API_KEY is not configured.")
 
-    providers.append(DuckDuckGoSearchProvider())
+    providers.append(DuckDuckGoSearchProvider(timeout=settings.duckduckgo_timeout))
     return providers

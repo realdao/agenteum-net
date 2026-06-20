@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 
 from ddgs import DDGS
+from ddgs.exceptions import RatelimitException, TimeoutException
 
 from src.errors import ErrorType, ProviderError
 from src.schemas import SearchRequest, SearchResult
@@ -22,14 +23,36 @@ _TIME_RANGE_MAP = {
 class DuckDuckGoSearchProvider:
     name = "duckduckgo"
 
-    def __init__(self, *, ddgs_factory: type[DDGS] = DDGS) -> None:
+    def __init__(self, *, ddgs_factory: type[DDGS] = DDGS, timeout: float = 15.0) -> None:
         self.ddgs_factory = ddgs_factory
+        self.timeout = timeout
 
     async def search(self, request: SearchRequest) -> list[SearchResult]:
         try:
-            return await asyncio.to_thread(self._search_sync, request)
+            return await asyncio.wait_for(
+                asyncio.to_thread(self._search_sync, request),
+                timeout=self.timeout,
+            )
         except ProviderError:
             raise
+        except TimeoutError as exc:
+            raise ProviderError(
+                error_type=ErrorType.TIMEOUT,
+                provider=self.name,
+                message="DuckDuckGo search timed out.",
+            ) from exc
+        except TimeoutException as exc:
+            raise ProviderError(
+                error_type=ErrorType.TIMEOUT,
+                provider=self.name,
+                message="DuckDuckGo search timed out.",
+            ) from exc
+        except RatelimitException as exc:
+            raise ProviderError(
+                error_type=ErrorType.RATE_LIMITED,
+                provider=self.name,
+                message="DuckDuckGo search was rate limited.",
+            ) from exc
         except Exception as exc:
             raise ProviderError(
                 error_type=ErrorType.PROVIDER_ERROR,
