@@ -37,6 +37,11 @@ def test_fetch_hardening_settings_can_be_configured():
     assert settings.allow_private_fetch is True
 
 
+def test_duckduckgo_timeout_default_and_override():
+    assert Settings().duckduckgo_timeout == 15.0
+    assert Settings(AGENTEUM_DUCKDUCKGO_TIMEOUT=3.5).duckduckgo_timeout == 3.5
+
+
 def test_remote_binding_requires_explicit_flag():
     settings = Settings(AGENTEUM_HOST="0.0.0.0", AGENTEUM_ALLOW_REMOTE=False)
 

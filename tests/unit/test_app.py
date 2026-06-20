@@ -143,6 +143,25 @@ async def test_build_search_providers_skips_unconfigured_paid_providers():
     assert await provider_names(Settings(TAVILY_API_KEY=None, EXA_API_KEY=None)) == ["duckduckgo"]
 
 
+async def test_build_search_providers_passes_duckduckgo_timeout():
+    client = httpx.AsyncClient()
+    try:
+        providers = _build_search_providers(
+            Settings(
+                TAVILY_API_KEY=None,
+                EXA_API_KEY=None,
+                AGENTEUM_DUCKDUCKGO_TIMEOUT=2.5,
+            ),
+            client,
+            logging.getLogger("test"),
+        )
+        duckduckgo = providers[-1]
+        assert duckduckgo.name == "duckduckgo"
+        assert duckduckgo.timeout == 2.5
+    finally:
+        await client.aclose()
+
+
 async def test_build_search_providers_includes_tavily_before_duckduckgo_when_configured():
     assert await provider_names(Settings(TAVILY_API_KEY="tavily-key", EXA_API_KEY=None)) == [
         "tavily",

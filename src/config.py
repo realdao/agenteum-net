@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     fetch_timeout: float = Field(default=20.0, alias="AGENTEUM_FETCH_TIMEOUT")
     fetch_max_bytes: int = Field(default=3_000_000, alias="AGENTEUM_FETCH_MAX_BYTES")
     allow_private_fetch: bool = Field(default=False, alias="AGENTEUM_ALLOW_PRIVATE_FETCH")
+    duckduckgo_timeout: float = Field(default=15.0, alias="AGENTEUM_DUCKDUCKGO_TIMEOUT")
     jina_timeout: float = Field(default=30.0, alias="AGENTEUM_JINA_TIMEOUT")
     log_level: str = Field(default="INFO", alias="AGENTEUM_LOG_LEVEL")
     tavily_api_key: str | None = Field(default=None, alias="TAVILY_API_KEY")
@@ -42,6 +43,13 @@ class Settings(BaseSettings):
     def validate_fetch_max_bytes(cls, value: int) -> int:
         if value < 1:
             raise ValueError("AGENTEUM_FETCH_MAX_BYTES must be at least 1")
+        return value
+
+    @field_validator("duckduckgo_timeout")
+    @classmethod
+    def validate_duckduckgo_timeout(cls, value: float) -> float:
+        if value <= 0:
+            raise ValueError("AGENTEUM_DUCKDUCKGO_TIMEOUT must be positive")
         return value
 
     def validate_network_binding(self, logger: logging.Logger) -> None:

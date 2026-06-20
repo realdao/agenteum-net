@@ -111,5 +111,5 @@ def _build_search_providers(
     else:
         logger.info("Exa search provider disabled because EXA_API_KEY is not configured.")
 
-    providers.append(DuckDuckGoSearchProvider())
+    providers.append(DuckDuckGoSearchProvider(timeout=settings.duckduckgo_timeout))
     return providers
