@@ -38,6 +38,31 @@ def test_configure_logging_uses_settings_log_level(monkeypatch):
     assert "%(asctime)s" in captured["format"]
 
 
+def test_create_app_passes_fetch_hardening_settings(monkeypatch):
+    captured = {}
+
+    class FakeHttpFetchProvider:
+        name = "http"
+
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+        async def fetch(self, url):
+            raise AssertionError("not called")
+
+    monkeypatch.setattr(app_module, "HttpFetchProvider", FakeHttpFetchProvider)
+
+    app_module.create_app(
+        Settings(
+            AGENTEUM_FETCH_MAX_BYTES=4096,
+            AGENTEUM_ALLOW_PRIVATE_FETCH=True,
+        )
+    )
+
+    assert captured["max_bytes"] == 4096
+    assert captured["allow_private_fetch"] is True
+
+
 async def test_create_app_closes_owned_http_clients_when_mcp_lifespan_exit_fails(monkeypatch):
     clients = []
 

@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     allow_remote: bool = Field(default=False, alias="AGENTEUM_ALLOW_REMOTE")
     request_timeout: float = Field(default=15.0, alias="AGENTEUM_REQUEST_TIMEOUT")
     fetch_timeout: float = Field(default=20.0, alias="AGENTEUM_FETCH_TIMEOUT")
+    fetch_max_bytes: int = Field(default=3_000_000, alias="AGENTEUM_FETCH_MAX_BYTES")
+    allow_private_fetch: bool = Field(default=False, alias="AGENTEUM_ALLOW_PRIVATE_FETCH")
     jina_timeout: float = Field(default=30.0, alias="AGENTEUM_JINA_TIMEOUT")
     log_level: str = Field(default="INFO", alias="AGENTEUM_LOG_LEVEL")
     tavily_api_key: str | None = Field(default=None, alias="TAVILY_API_KEY")
@@ -34,6 +36,13 @@ class Settings(BaseSettings):
         if normalized not in logging.getLevelNamesMapping():
             raise ValueError("AGENTEUM_LOG_LEVEL must be a valid Python logging level")
         return normalized
+
+    @field_validator("fetch_max_bytes")
+    @classmethod
+    def validate_fetch_max_bytes(cls, value: int) -> int:
+        if value < 1:
+            raise ValueError("AGENTEUM_FETCH_MAX_BYTES must be at least 1")
+        return value
 
     def validate_network_binding(self, logger: logging.Logger) -> None:
         if not is_remote_bind_host(self.host):
