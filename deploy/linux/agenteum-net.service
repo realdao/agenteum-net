@@ -23,8 +23,7 @@ StandardError=append:%PROJECT_DIR%/logs/agenteum-net.err.log
 
 NoNewPrivileges=true
 ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=%PROJECT_DIR%/logs
+ReadWritePaths=%PROJECT_DIR%
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true
