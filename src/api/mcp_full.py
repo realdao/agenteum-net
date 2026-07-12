@@ -4,6 +4,7 @@ import logging
 from typing import Annotated, Any
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import Field
 
 from src.resources.tool_guides import RESOURCE_URIS, resource_text_by_uri
@@ -14,13 +15,30 @@ FetchUrls = Annotated[list[str], Field(min_length=1, max_length=10)]
 ParallelProviders = list[SearchProviderName]
 
 
-def create_mcp_server(*, search_service: Any, fetch_service: Any) -> FastMCP:
+def create_mcp_server(
+    *,
+    search_service: Any,
+    fetch_service: Any,
+    allow_remote: bool = False,
+) -> FastMCP:
     logger = logging.getLogger("agenteum_net")
+    # FastMCP auto-enables localhost-only DNS-rebinding protection when host is
+    # 127.0.0.1/localhost. That blocks remote clients reaching the service via a
+    # domain name or public IP (the SDK rejects their Host header with 421).
+    # When the operator explicitly opts into remote access via
+    # AGENTEUM_ALLOW_REMOTE=true, disable that protection so external Host
+    # headers are accepted. Authentication should be handled separately.
+    transport_security = (
+        TransportSecuritySettings(enable_dns_rebinding_protection=False)
+        if allow_remote
+        else None
+    )
     mcp = FastMCP(
         "Agenteum Net",
         stateless_http=True,
         json_response=True,
         streamable_http_path="/",
+        transport_security=transport_security,
     )
 
     @mcp.tool()

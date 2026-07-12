@@ -30,7 +30,10 @@ AGENTEUM_HOST=0.0.0.0
 AGENTEUM_ALLOW_REMOTE=true
 ```
 
-v1.0 has no authentication. Do not expose a remote bind address to an untrusted network.
+Setting `AGENTEUM_ALLOW_REMOTE=true` also disables the MCP SDK's localhost-only
+DNS-rebinding protection, so remote clients can reach the service via a hostname
+or public IP (their `Host` header is accepted). v1.0 has no authentication; do
+not expose a remote bind address to an untrusted network.
 
 ## Logging
 

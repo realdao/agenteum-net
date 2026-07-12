@@ -47,7 +47,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         logger=logger,
     )
 
-    mcp = create_mcp_server(search_service=search_service, fetch_service=fetch_service)
+    mcp = create_mcp_server(
+        search_service=search_service,
+        fetch_service=fetch_service,
+        allow_remote=settings.allow_remote,
+    )
     mcp_app = mount_mcp_streamable_http(mcp)
 
     @contextlib.asynccontextmanager

@@ -327,3 +327,44 @@ async def test_parallel_search_tool_accepts_optional_providers_and_logs(caplog):
         and record.result == result
         for record in caplog.records
     )
+
+
+class _FakeSearchService:
+    async def search(self, request):
+        return SearchResponse(query=request.query, results=[], source="duckduckgo", fallbacks=[])
+
+    async def parallel_search(self, request, provider_names=None):
+        return ParallelSearchResponse(
+            query=request.query, results=[], sources=provider_names or ["duckduckgo"], errors=[]
+        )
+
+
+class _FakeFetchService:
+    async def fetch(self, urls):
+        return FetchResponse(results=[])
+
+
+def test_create_mcp_server_disables_dns_rebinding_protection_when_remote():
+    mcp = create_mcp_server(
+        search_service=_FakeSearchService(),
+        fetch_service=_FakeFetchService(),
+        allow_remote=True,
+    )
+
+    security = mcp.settings.transport_security
+    assert security is not None
+    assert security.enable_dns_rebinding_protection is False
+
+
+def test_create_mcp_server_keeps_default_localhost_protection_when_local():
+    mcp = create_mcp_server(
+        search_service=_FakeSearchService(),
+        fetch_service=_FakeFetchService(),
+        allow_remote=False,
+    )
+
+    # transport_security is None so FastMCP auto-enables localhost-only protection
+    security = mcp.settings.transport_security
+    assert security is not None
+    assert "127.0.0.1:*" in security.allowed_hosts
+    assert "localhost:*" in security.allowed_hosts
