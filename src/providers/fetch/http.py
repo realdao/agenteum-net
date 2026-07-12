@@ -24,7 +24,7 @@ class HttpFetchProvider:
         client: httpx.AsyncClient | None = None,
         converter: MarkdownConverter | None = None,
         timeout: float = 20.0,
-        max_bytes: int = 3_000_000,
+        max_bytes: int = 10_000_000,
         allow_private_fetch: bool = False,
         max_redirects: int = 10,
     ) -> None:
@@ -158,9 +158,17 @@ class HttpFetchProvider:
                     continue
 
                 content = await self._read_limited_body(response)
+                # Content has already been decompressed by aiter_bytes(); drop
+                # transfer-encoding headers so the rebuilt Response does not try
+                # to decode it a second time (which raises DecodingError).
+                headers = httpx.Headers(
+                    (k, v)
+                    for k, v in response.headers.items()
+                    if k.lower() not in ("content-encoding", "content-length")
+                )
                 return httpx.Response(
                     status_code=response.status_code,
-                    headers=response.headers,
+                    headers=headers,
                     content=content,
                     request=response.request,
                     extensions=response.extensions,
@@ -173,6 +181,9 @@ class HttpFetchProvider:
         )
 
     async def _read_limited_body(self, response: httpx.Response) -> bytes:
+        # aiter_bytes() yields decoded (decompressed) content. We strip
+        # Content-Encoding/Content-Length below so the reconstructed Response
+        # does not attempt to decompress the already-decoded bytes again.
         chunks = []
         total = 0
         async for chunk in response.aiter_bytes():

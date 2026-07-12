@@ -23,7 +23,7 @@ def test_log_level_can_be_configured():
 def test_fetch_hardening_defaults_are_conservative():
     settings = Settings()
 
-    assert settings.fetch_max_bytes == 3_000_000
+    assert settings.fetch_max_bytes == 10_000_000
     assert settings.allow_private_fetch is False
 
 

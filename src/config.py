@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     allow_remote: bool = Field(default=False, alias="AGENTEUM_ALLOW_REMOTE")
     request_timeout: float = Field(default=15.0, alias="AGENTEUM_REQUEST_TIMEOUT")
     fetch_timeout: float = Field(default=20.0, alias="AGENTEUM_FETCH_TIMEOUT")
-    fetch_max_bytes: int = Field(default=3_000_000, alias="AGENTEUM_FETCH_MAX_BYTES")
+    fetch_max_bytes: int = Field(default=10_000_000, alias="AGENTEUM_FETCH_MAX_BYTES")
     allow_private_fetch: bool = Field(default=False, alias="AGENTEUM_ALLOW_PRIVATE_FETCH")
     duckduckgo_timeout: float = Field(default=15.0, alias="AGENTEUM_DUCKDUCKGO_TIMEOUT")
     jina_timeout: float = Field(default=30.0, alias="AGENTEUM_JINA_TIMEOUT")

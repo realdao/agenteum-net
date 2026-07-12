@@ -1,3 +1,4 @@
+import gzip
 import threading
 
 import httpx
@@ -213,4 +214,30 @@ async def test_http_fetch_404_html_raises_invalid_response_with_status():
     assert raised.value.error_type == ErrorType.INVALID_RESPONSE
     assert raised.value.http_status == 404
     assert converter.calls == []
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_http_fetch_decompresses_gzip_response_without_double_decoding():
+    # Servers return gzip-compressed bodies with Content-Encoding: gzip. The
+    # provider reads decoded bytes via aiter_bytes() and must not hand the
+    # rebuilt Response headers that would make httpx decode a second time
+    # (previously raised DecodingError, masked by the size limit rejecting the
+    # larger decompressed body first).
+    raw_html = b"<html><body><h1>Hello</h1></body></html>"
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            headers={"Content-Type": "text/html", "Content-Encoding": "gzip"},
+            content=gzip.compress(raw_html),
+            request=request,
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=True)
+    provider = HttpFetchProvider(client=client, converter=FakeMarkdownConverter())
+
+    result = await provider.fetch("https://example.com/")
+
+    assert result.status == "ok"
+    assert result.content == "# Hello\n\nThis page has enough readable content."
     await client.aclose()
